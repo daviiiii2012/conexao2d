@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Seguro ADM | Conexão 2D</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-box { max-width: 480px; margin: 2rem auto; background: #151d30; padding: 1.8rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .admin-box input, .admin-box button { width: 100%; padding: 0.82rem; margin-top: 0.5rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: #0b0f19; color: #fff; font-size: 0.95rem; box-sizing: border-box; }
+        .admin-box button { background: linear-gradient(135deg, #00f2fe, #0072ff); color: #0b0f19; font-weight: 800; border: none; cursor: pointer; margin-top: 1.2rem; }
+        .admin-box button:active { transform: scale(0.98); }
+        .preview-img { max-width: 100%; height: 120px; object-fit: contain; margin-top: 1rem; display: none; border: 1px dashed rgba(0,242,254,0.3); padding: 5px; border-radius: 8px; }
+        .hidden { display: none !important; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.9rem; }
+        .btn-del { width: auto !important; padding: 0.4rem 0.8rem !important; background: #ff0055 !important; color: #fff !important; margin: 0 !important; font-size: 0.8rem !important; }
+        .security-badge { text-align: center; font-size: 0.75rem; color: #00f2fe; margin-bottom: 1rem; letter-spacing: 1px; }
+        .lock-notice { color: #ff0055; font-size: 0.85rem; text-align: center; margin-top: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <header class="glass-nav">
+        <div class="logo"><h1>PAINEL <span>ADM</span></h1></div>
+        <a href="index.html" style="color: #00f2fe; text-decoration: none; font-weight: bold; font-size: 0.9rem;">Voltar à Loja 🛒</a>
+    </header>
+
+    <!-- TELA DE LOGIN PROTEGIDA -->
+    <div class="admin-box" id="login-screen">
+        <div class="security-badge">🔒 ACESSO EXCLUSIVO CONEXÃO 2D</div>
+        <h2 style="text-align: center; margin-bottom: 1rem;">Área Restrita</h2>
+        <input type="password" id="admin-pass" placeholder="Digite a senha de acesso" onkeydown="if(event.key==='Enter') verifySecurity()">
+        <button onclick="verifySecurity()">Entrar no Sistema</button>
+        <p class="lock-notice" id="lock-msg"></p>
+    </div>
+
+    <!-- TELA DE GESTÃO -->
+    <div class="admin-box hidden" id="control-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2>Cadastrar Produto</h2>
+            <button onclick="logoutAdmin()" style="width: auto; margin: 0; padding: 0.3rem 0.7rem; background: #64748b; color: white; font-size: 0.75rem;">Sair</button>
+        </div>
+
+        <label style="font-size: 0.8rem; color: #94a3b8;">Nome do Produto:</label>
+        <input type="text" id="prod-name" placeholder="Ex: Capa Silicone MagSafe">
+
+        <label style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.8rem; display: block;">Preço (R$):</label>
+        <input type="number" id="prod-price" placeholder="Ex: 35.00" step="0.01">
+
+        <label style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.8rem; display: block;">Foto da Galeria:</label>
+        <input type="file" id="prod-file" accept="image/*" onchange="previewImage(event)">
+        
+        <img id="image-preview" class="preview-img" alt="Prévia">
+        
+        <button onclick="saveProduct()">Salvar no Catálogo</button>
+
+        <hr style="margin: 1.5rem 0; border-color: rgba(255,255,255,0.08);">
+
+        <h3>Produtos Cadastrados</h3>
+        <div id="admin-product-list" style="margin-top: 1rem;"></div>
+    </div>
+
+    <script>
+        let attempts = parseInt(localStorage.getItem('login_attempts')) || 0;
+        let lockUntil = parseInt(localStorage.getItem('lock_until')) || 0;
+        let selectedImageBase64 = "";
+
+        function verifySecurity() {
+            const now = Date.now();
+            const lockMsg = document.getElementById('lock-msg');
+
+            // Verifica se o painel está temporariamente bloqueado por tentativas
+            if (now < lockUntil) {
+                const remainingSecs = Math.ceil((lockUntil - now) / 1000);
+                lockMsg.innerText = `Bloqueado por segurança. Tente em ${remainingSecs}s.`;
+                return;
+            }
+
+            const inputPass = document.getElementById('admin-pass').value.trim();
+
+            // Valida a senha real 'aldav 2026' ou 'aldav2026'
+            if (inputPass === "aldav 2026" || inputPass === "aldav2026") {
+                // Sucesso
+                localStorage.setItem('login_attempts', 0);
+                localStorage.setItem('admin_session', Date.now()); 
+                showPanel();
+            } else {
+                // Erro
+                attempts++;
+                localStorage.setItem('login_attempts', attempts);
+                
+                if (attempts >= 5) {
+                    lockUntil = Date.now() + (5 * 60 * 1000); // 5 Minutos de Bloqueio
+                    localStorage.setItem('lock_until', lockUntil);
+                    lockMsg.innerText = "Muitas tentativas incorretas! Bloqueado por 5 minutos.";
+                } else {
+                    alert(`Senha incorreta! Tentativas restantes: ${5 - attempts}`);
+                }
+            }
+        }
+
+        function checkSession() {
+            const session = localStorage.getItem('admin_session');
+            if (session && (Date.now() - parseInt(session)) < 1800000) {
+                showPanel();
+            }
+        }
+
+        function showPanel() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('control-panel').classList.remove('hidden');
+            loadAdminProducts();
+        }
+
+        function logoutAdmin() {
+            localStorage.removeItem('admin_session');
+            location.reload();
+        }
+
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImageBase64 = e.target.result;
+                    const preview = document.getElementById('image-preview');
+                    preview.src = selectedImageBase64;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function sanitizeInput(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function saveProduct() {
+            const rawName = document.getElementById('prod-name').value;
+            const price = parseFloat(document.getElementById('prod-price').value);
+            const image = selectedImageBase64 || "https://via.placeholder.com/200";
+
+            if (!rawName || isNaN(price)) {
+                alert("Preencha o nome e o preço corretamente!");
+                return;
+            }
+
+            const name = sanitizeInput(rawName);
+            let products = JSON.parse(localStorage.getItem('conexao2d_products')) || [];
+            products.push({ id: Date.now(), name, price, image });
+            localStorage.setItem('conexao2d_products', JSON.stringify(products));
+
+            alert("Produto cadastrado com sucesso!");
+            document.getElementById('prod-name').value = '';
+            document.getElementById('prod-price').value = '';
+            document.getElementById('prod-file').value = '';
+            document.getElementById('image-preview').style.display = 'none';
+            selectedImageBase64 = "";
+            loadAdminProducts();
+        }
+
+        function loadAdminProducts() {
+            let products = JSON.parse(localStorage.getItem('conexao2d_products')) || [];
+            const container = document.getElementById('admin-product-list');
+            container.innerHTML = '';
+            products.forEach((p, index) => {
+                container.innerHTML += `
+                    <div class="item-row">
+                        <span>${p.name} - R$ ${parseFloat(p.price).toFixed(2).replace('.', ',')}</span>
+                        <button class="btn-del" onclick="deleteProduct(${index})">Apagar</button>
+                    </div>
+                `;
+            });
+        }
+
+        function deleteProduct(index) {
+            if (confirm("Deseja realmente apagar este produto do catálogo?")) {
+                let products = JSON.parse(localStorage.getItem('conexao2d_products')) || [];
+                products.splice(index, 1);
+                localStorage.setItem('conexao2d_products', JSON.stringify(products));
+                loadAdminProducts();
+            }
+        }
+
+        checkSession();
+    </script>
+</body>
+</html>

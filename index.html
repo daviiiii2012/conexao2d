@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conexão 2D | Acessórios High-Tech</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- NAVBAR GLASSMORPHISM -->
+    <header class="glass-nav">
+        <div class="logo">
+            <h1>CONEXÃO <span>2D</span></h1>
+        </div>
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Buscar Capas, MagSafe, Carregadores, Fones..." onkeyup="filterProducts()">
+            <span class="search-icon">🔍</span>
+        </div>
+        <div class="cart-btn" onclick="toggleCartModal()">
+            🛒 <span id="cart-count">0</span>
+        </div>
+    </header>
+
+    <!-- HERO BANNER COM INTERAÇÃO 3D COMPLETA E FUNDO FUTURISTA -->
+    <section class="hero-3d">
+        <canvas id="canvas3d"></canvas>
+        
+        <div class="hero-content">
+            <span class="tech-tag">⚡ ECOSSISTEMA DE ACESSÓRIOS 2026</span>
+            <h2>Equipe Seu Celular com o Melhor da Tecnologia</h2>
+            <p>Carregadores por Indução, Capas Anti-Impacto, Películas, Fones Bluetooth e Acessórios Premium de alta durabilidade.</p>
+        </div>
+
+        <!-- CONTROLES INTERATIVOS DO CANVAS 3D -->
+        <div class="controls-3d">
+            <button onclick="changeColorTheme()" title="Mudar Cor Neon">🎨 Cor Neon</button>
+            <button onclick="toggleSpeed()" id="btn-speed" title="Acelerar Rotação">⚡ Turbo 3D</button>
+            <button onclick="reset3DView()" title="Centralizar">🎯 Resetar</button>
+        </div>
+    </section>
+
+    <!-- CATÁLOGO DE PRODUTOS INTERATIVO -->
+    <main class="container">
+        <div class="section-header">
+            <h2 class="section-title">Catálogo <span>Premium</span></h2>
+            <p class="products-count" id="count-info">Carregando produtos...</p>
+        </div>
+
+        <div class="product-grid" id="product-container">
+            <!-- Produtos renderizados via JavaScript -->
+        </div>
+    </main>
+
+    <!-- BOTÃO FLUTUANTE DE DÚVIDA DE COMPATIBILIDADE (WHATSAPP CONFIGURADO) -->
+    <a href="https://api.whatsapp.com/send?phone=5511913407970&text=Ol%C3%A1!%20Tenho%20d%C3%BAvida%20se%20um%20acess%C3%B3rio%20%C3%A9%20compat%C3%ADvel%20com%20o%20meu%20celular." 
+       target="_blank" 
+       class="whatsapp-float" 
+       title="Dúvida se serve no seu celular? Fale conosco!">
+        <span class="wa-icon">💬</span>
+        <span class="wa-text">Dúvida sobre compatibilidade?</span>
+    </a>
+
+    <!-- MODAL DE DETALHES DO PRODUTO (GLASSMORPHISM) -->
+    <div class="modal-overlay hidden" id="product-modal" onclick="closeModal(event)">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModalDirect()">✕</button>
+            <div class="modal-body">
+                <img id="modal-img" src="" alt="Produto">
+                <div class="modal-details">
+                    <span class="tech-tag">GARANTIA CONEXÃO 2D</span>
+                    <h2 id="modal-title">Nome do Produto</h2>
+                    <p id="modal-desc" class="modal-desc">Acessório homologado com suporte a carregamento rápido, proteção de alta durabilidade e acabamento exclusivo.</p>
+                    <div class="modal-price" id="modal-price">R$ 0,00</div>
+                    <button class="btn-buy" id="modal-buy-btn">Adicionar ao Carrinho 🛒</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAINEL LATERAL DO CARRINHO DE COMPRAS -->
+    <div class="cart-sidebar hidden" id="cart-sidebar">
+        <div class="cart-header">
+            <h3>Seu Carrinho 🛒</h3>
+            <button onclick="toggleCartModal()" class="close-btn">✕</button>
+        </div>
+        <div class="cart-items" id="cart-items-list">
+            <p style="text-align:center; color:#64748b; margin-top:2rem;">Carrinho vazio.</p>
+        </div>
+        <div class="cart-footer">
+            <div class="total-price">Total: <span id="cart-total-value">R$ 0,00</span></div>
+            <button class="btn-buy" onclick="checkoutWhatsApp()">Finalizar no WhatsApp 📱</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Conexão 2D - Experiência 3D Interativa.</p>
+        <a href="admin.html" class="admin-link">Área Administrativa 🔒</a>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. ANIMAÇÃO & MOTOR 3D COM FUNDO PREMIUM
+        // ==========================================
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let mouse = { x: canvas.width / 2, y: canvas.height / 2, rx: 0, ry: 0 };
+        let neonColors = ['#00f2fe', '#7928ca', '#00ff88', '#ff007f'];
+        let colorIndex = 0;
+        let speedMultiplier = 1;
+
+        // SISTEMA DE PARTÍCULAS NO FUNDO
+        const particles = [];
+        const numParticles = 45;
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedY = Math.random() * 0.4 + 0.1;
+                this.alpha = Math.random() * 0.5 + 0.2;
+            }
+            update() {
+                this.y -= this.speedY * speedMultiplier;
+                if (this.y < 0) {
+                    this.y = canvas.height;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+            draw() {
+                ctx.fillStyle = neonColors[colorIndex];
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        for (let i = 0; i < numParticles; i++) {
+            particles.push(new Particle());
+        }
+
+        function updateMousePos(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = x - rect.left;
+            mouse.y = y - rect.top;
+            mouse.rx = (mouse.x / canvas.width - 0.5) * 2;
+            mouse.ry = (mouse.y / canvas.height - 0.5) * 2;
+        }
+
+        window.addEventListener('mousemove', (e) => updateMousePos(e.clientX, e.clientY));
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) updateMousePos(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        class Object3D {
+            constructor(type, x, y, z) {
+                this.type = type;
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.rotX = Math.random() * Math.PI;
+                this.rotY = Math.random() * Math.PI;
+                this.rotZ = Math.random() * Math.PI;
+                this.speedX = (Math.random() - 0.5) * 0.02;
+                this.speedY = (Math.random() - 0.5) * 0.02;
+                this.baseY = y;
+                this.floatOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.rotX += (this.speedX + mouse.ry * 0.008) * speedMultiplier;
+                this.rotY += (this.speedY + mouse.rx * 0.008) * speedMultiplier;
+                this.floatOffset += 0.03 * speedMultiplier;
+                this.y = this.baseY + Math.sin(this.floatOffset) * 14;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                const scale = 320 / (320 + this.z);
+                ctx.scale(scale, scale);
+
+                const primaryNeon = neonColors[colorIndex];
+
+                if (this.type === 'phone') {
+                    ctx.rotate(this.rotY);
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeStyle = primaryNeon;
+                    ctx.lineWidth = 3;
+
+                    ctx.beginPath();
+                    ctx.roundRect(-38, -70, 76, 140, 14);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(0, 242, 254, 0.12)';
+                    ctx.beginPath();
+                    ctx.roundRect(-32, -62, 64, 124, 10);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.roundRect(-12, -56, 24, 8, 4);
+                    ctx.fill();
+
+                } else if (this.type === 'charger') {
+                    ctx.rotate(this.rotX);
+                    ctx.strokeStyle = primaryNeon;
+                    ctx.lineWidth = 4;
+                    ctx.fillStyle = 'rgba(0, 114, 255, 0.15)';
+
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 38, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.stroke();
+
+                    ctx.fillStyle = primaryNeon;
+                    ctx.font = 'bold 18px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⚡', 0, 0);
+
+                } else if (this.type === 'headphone') {
+                    ctx.rotate(this.rotZ);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 3.5;
+
+                    ctx.beginPath();
+                    ctx.arc(0, -12, 24, Math.PI, 0);
+                    ctx.stroke();
+
+                    ctx.fillStyle = primaryNeon;
+                    ctx.beginPath();
+                    ctx.arc(-24, 2, 9, 0, Math.PI * 2);
+                    ctx.arc(24, 2, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        const objects = [];
+        function init3D() {
+            objects.length = 0;
+            const w = canvas.width;
+            const h = canvas.height;
+            objects.push(new Object3D('phone', w * 0.18, h * 0.45, 40));
+            objects.push(new Object3D('charger', w * 0.82, h * 0.35, 20));
+            objects.push(new Object3D('headphone', w * 0.5, h * 0.72, 70));
+            objects.push(new Object3D('charger', w * 0.12, h * 0.8, 90));
+            objects.push(new Object3D('phone', w * 0.88, h * 0.8, 50));
+        }
+
+        function animate3D() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. DESENHAR GRADE CYBERPUNK DE FUNDO
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            const gridSize = 45;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // 2. DESENHAR PARTÍCULAS
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // 3. CURSOR NEON
+            ctx.fillStyle = neonColors[colorIndex];
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = neonColors[colorIndex];
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // 4. OBJETOS 3D
+            objects.forEach(obj => {
+                obj.update();
+                obj.draw();
+            });
+
+            requestAnimationFrame(animate3D);
+        }
+
+        function changeColorTheme() {
+            colorIndex = (colorIndex + 1) % neonColors.length;
+        }
+
+        function toggleSpeed() {
+            speedMultiplier = speedMultiplier === 1 ? 2.5 : 1;
+            document.getElementById('btn-speed').style.color = speedMultiplier > 1 ? '#00ff88' : '#fff';
+        }
+
+        function reset3DView() {
+            mouse.rx = 0;
+            mouse.ry = 0;
+            speedMultiplier = 1;
+            init3D();
+        }
+
+        init3D();
+        animate3D();
+
+        // ==========================================
+        // 2. CATÁLOGO & CARRINHO INTERATIVO
+        // ==========================================
+        const defaultProducts = [
+            { id: 1, name: "Carregador Magnético MagSafe 15W", price: 89.90, image: "https://images.unsplash.com/photo-1622445268465-84024680922c?w=400&q=80" },
+            { id: 2, name: "Capa Anti-Impacto Transparente MagSafe", price: 49.90, image: "https://images.unsplash.com/photo-1601593378440-664402636a43?w=400&q=80" },
+            { id: 3, name: "Cabo USB-C Turbo 60W Nylon Trançado", price: 34.90, image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&q=80" },
+            { id: 4, name: "Fone Bluetooth Cancelamento de Ruído", price: 159.90, image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&q=80" }
+        ];
+
+        let cart = [];
+
+        function getProducts() {
+            const stored = localStorage.getItem('conexao2d_products');
+            return stored ? JSON.parse(stored) : defaultProducts;
+        }
+
+        function renderProducts(productsToRender) {
+            const container = document.getElementById('product-container');
+            const countInfo = document.getElementById('count-info');
+            container.innerHTML = '';
+
+            countInfo.innerText = `${productsToRender.length} acessório(s) em destaque`;
+
+            if (productsToRender.length === 0) {
+                container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #94a3b8;">Nenhum acessório encontrado.</p>`;
+                return;
+            }
+
+            productsToRender.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+
+                card.onmousemove = (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left - rect.width / 2;
+                    const y = e.clientY - rect.top - rect.height / 2;
+                    card.style.transform = `perspective(1000px) rotateX(${-y / 12}deg) rotateY(${x / 12}deg) translateY(-6px)`;
+                };
+
+                card.onmouseleave = () => {
+                    card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)`;
+                };
+
+                card.innerHTML = `
+                    <img src="${product.image}" alt="${product.name}" onclick="openModal(${product.id})">
+                    <h3 onclick="openModal(${product.id})">${product.name}</h3>
+                    <div class="price">R$ ${parseFloat(product.price).toFixed(2).replace('.', ',')}</div>
+                    <button class="btn-buy" onclick="addToCart(${product.id})">Adicionar 🛒</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterProducts() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const filtered = getProducts().filter(p => p.name.toLowerCase().includes(term));
+            renderProducts(filtered);
+        }
+
+        function addToCart(id) {
+            const product = getProducts().find(p => p.id === id);
+            if (product) {
+                cart.push(product);
+                updateCartUI();
+                toggleCartModal(true);
+            }
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            document.getElementById('cart-count').innerText = cart.length;
+            const container = document.getElementById('cart-items-list');
+            const totalEl = document.getElementById('cart-total-value');
+            container.innerHTML = '';
+
+            let total = 0;
+            if (cart.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:#64748b; margin-top:2rem;">Carrinho vazio.</p>`;
+            } else {
+                cart.forEach((item, index) => {
+                    total += parseFloat(item.price);
+                    container.innerHTML += `
+                        <div class="cart-item-row">
+                            <div>
+                                <strong>${item.name}</strong><br>
+                                <span style="color:#00f2fe">R$ ${parseFloat(item.price).toFixed(2).replace('.', ',')}</span>
+                            </div>
+                            <button onclick="removeFromCart(${index})" class="btn-del-cart">✕</button>
+                        </div>
+                    `;
+                });
+            }
+            totalEl.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        function toggleCartModal(forceOpen = false) {
+            const sidebar = document.getElementById('cart-sidebar');
+            if (forceOpen) {
+                sidebar.classList.remove('hidden');
+            } else {
+                sidebar.classList.toggle('hidden');
+            }
+        }
+
+        function openModal(id) {
+            const product = getProducts().find(p => p.id === id);
+            if (product) {
+                document.getElementById('modal-img').src = product.image;
+                document.getElementById('modal-title').innerText = product.name;
+                document.getElementById('modal-price').innerText = `R$ ${parseFloat(product.price).toFixed(2).replace('.', ',')}`;
+                document.getElementById('modal-buy-btn').onclick = () => {
+                    addToCart(product.id);
+                    closeModalDirect();
+                };
+                document.getElementById('product-modal').classList.remove('hidden');
+            }
+        }
+
+        function closeModal(e) {
+            if (e.target.id === 'product-modal') closeModalDirect();
+        }
+
+        function closeModalDirect() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        function checkoutWhatsApp() {
+            if (cart.length === 0) {
+                alert("Seu carrinho está vazio!");
+                return;
+            }
+            let message = "Olá! Gostaria de finalizar o pedido dos seguintes produtos:\n\n";
+            let total = 0;
+            cart.forEach((item, i) => {
+                message += `${i + 1}. ${item.name} - R$ ${parseFloat(item.price).toFixed(2).replace('.', ',')}\n`;
+                total += parseFloat(item.price);
+            });
+            message += `\n*Total:* R$ ${total.toFixed(2).replace('.', ',')}`;
+            
+            const url = `https://api.whatsapp.com/send?phone=5511913407970&text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank');
+        }
+
+        renderProducts(getProducts());
+    </script>
+</body>
+</html>
